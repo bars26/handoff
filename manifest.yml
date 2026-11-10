@@ -1,0 +1,83 @@
+modules:
+  rovo:mcp:
+    - key: handoff-mcp
+      name: Handoff
+      tools:
+        - get-work-brief
+        - ask-for-clarification
+  rovo:agent:
+    - key: handoff-coach
+      name: Handoff Coach
+      description: Checks whether a Jira issue is ready to hand to a coding agent and helps you close the gaps.
+      icon: resource:icons;handoff.svg
+      prompt: resource:agent;coach.txt
+      conversationStarters:
+        - Is this issue ready for a coding agent?
+        - Help me write acceptance criteria for this issue
+        - Post the open questions on this issue
+      actions:
+        - get-work-brief
+        - ask-for-clarification
+  action:
+    - key: get-work-brief
+      name: Get work brief
+      function: getWorkBrief
+      actionVerb: GET
+      description: >
+        Call before starting work on a Jira issue. Returns a compact brief:
+        description, linked and blocking issues, recent comments, and a
+        readiness check saying if the issue is clear enough to start and
+        what is missing.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example PROJ-123.
+    - key: ask-for-clarification
+      name: Ask for clarification
+      function: askForClarification
+      actionVerb: CREATE
+      description: >
+        Posts open questions as one comment on a Jira issue that is not ready
+        to work on. Use after get-work-brief reports missing information.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example PROJ-123.
+        questions:
+          title: Questions
+          type: string
+          required: true
+          description: The questions to ask, one per line, at most 10.
+  jira:issuePanel:
+    - key: handoff-panel
+      title: Handoff
+      resource: panel
+      render: native
+      icon: resource:icons;handoff.svg
+  function:
+    - key: askForClarification
+      handler: index.askForClarification
+    - key: getWorkBrief
+      handler: index.getWorkBrief
+resources:
+  - key: panel
+    path: src/frontend/index.jsx
+  - key: agent
+    path: prompts
+  - key: icons
+    path: assets
+permissions:
+  scopes:
+    - read:jira-work
+    - read:jira-user
+    - write:jira-work
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/0cee8d96-5d6d-4487-be78-3f66b6c778c2

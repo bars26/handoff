@@ -1,0 +1,9 @@
+node_modules/
+.idea/
+.env
+.DS_Store
+
+/.forge/
+
+# Forge template guidance for coding assistants, not part of the app
+AGENTS.md
