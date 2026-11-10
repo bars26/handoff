@@ -63,11 +63,16 @@ failed check points at something a person can fix.
 Inside Jira and Rovo, Handoff reads and writes as the current user (`asUser()`), so Jira's own
 permissions apply.
 
-A call from an external MCP client reaches a Forge function without a user session: `asUser()`
-throws `Authentication Required`. Forge does pass the caller's account ID. In that case Handoff acts
-as the app, but only after asking Jira whether that account may browse (and, for comments, comment
-on) that exact issue. If not, the caller gets the same answer as for an issue that does not exist. A
-comment posted this way names the person whose agent asked.
+A call from an external MCP client can reach a Forge function without a user session; `asUser()`
+then throws `Authentication Required`. On our development site this happened on the first calls from
+Claude Code and stopped after the same user had used the app inside Jira and re-authorised the
+client, so it appears to depend on whether that user has already granted the app access. Forge passes
+the caller's account ID either way.
+
+When there is no user session, Handoff acts as the app, but only after asking Jira whether that
+account may browse (and, for comments, comment on) that exact issue. If not, the caller gets the same
+answer as for an issue that does not exist. A comment posted this way names the person whose agent
+asked.
 
 ## Develop
 
@@ -113,8 +118,11 @@ Verified on a development site:
 - Handoff Coach posting open questions with `ask-for-clarification`: Rovo shows a confirmation card
   first, and the comment is written as the user who confirmed.
 
-Not yet verified: `ask-for-clarification` called from an external MCP client (where the comment is
-written by the app), and the refusal path for a caller without access to the issue.
+- `ask-for-clarification` from Claude Code: the comment is written as the user who authorised the
+  client.
+
+Not yet verified: a comment written by the app (the path without a user session), and the refusal
+path for a caller without access to the issue.
 
 ## License
 
