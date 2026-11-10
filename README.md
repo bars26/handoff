@@ -106,11 +106,15 @@ open Rovo chat and pick **Handoff Coach**.
 
 ## Status
 
-Verified on a development site: the issue panel, `get-work-brief` from Claude Code, and Handoff Coach
-calling the same tool in Rovo all return the same verdict for the same issue.
+Verified on a development site:
 
-Not yet verified: `ask-for-clarification` posting on a real issue, and the refusal path for a caller
-without access to the issue.
+- The issue panel, `get-work-brief` from Claude Code, and Handoff Coach calling the same tool in Rovo
+  all return the same verdict for the same issue.
+- Handoff Coach posting open questions with `ask-for-clarification`: Rovo shows a confirmation card
+  first, and the comment is written as the user who confirmed.
+
+Not yet verified: `ask-for-clarification` called from an external MCP client (where the comment is
+written by the app), and the refusal path for a caller without access to the issue.
 
 ## License
 
