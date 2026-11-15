@@ -139,8 +139,10 @@ Verified on a development site:
   the development site has none in Teamwork Graph. Teamwork Graph is only readable with a user
   session, so a call that arrives without one gets the brief without connected work.
 
-Not yet verified: a comment written by the app (the path without a user session), and the refusal
-path for a caller without access to the issue.
+- A second user without a session, from Claude Code: `get-work-brief` returned the brief for an issue
+  they can browse and "does not exist or you do not have permission to see it" for an issue in a
+  private space they are not a member of. `ask-for-clarification` posted the comment as the app,
+  naming that user as the one who asked.
 
 ## License
 

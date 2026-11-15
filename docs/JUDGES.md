@@ -101,9 +101,11 @@ written as the user who confirmed or authorised.
 Connected work was verified with linked goals in the panel and through Handoff Coach. Linked pull
 requests and designs are not yet verified: our development site has none in Teamwork Graph.
 
-Not yet verified: the comment written by the app itself (the path without a user session), and the
-refusal for a caller who cannot see the issue. Both are implemented and described in the README
-under *Access control for external MCP clients*.
+The path without a user session was verified with a second user from Claude Code: the brief is
+returned for an issue they can browse, an issue in a private space they are not a member of is
+refused as "does not exist or you do not have permission to see it", and the clarification comment
+is written by the app and names that user. See the README under *Access control for external MCP
+clients*.
 
 ## Bonus prize materials
 
