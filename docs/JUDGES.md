@@ -3,6 +3,8 @@
 Handoff checks whether a Jira issue is clear enough to give to a coding agent. The same verdict is
 shown on the issue, used by a Rovo agent, and served to external coding agents over MCP.
 
+Demo video (3 minutes): https://youtu.be/0__mPQDLhWE
+
 Testing the panel and the Rovo agent takes about five minutes. The external MCP part takes five
 more and needs an MCP client such as Claude Code.
 

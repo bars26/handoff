@@ -8,8 +8,8 @@ Handoff is an Atlassian Forge app for Jira. It checks whether an issue is clear 
 coding agent, shows the result on the issue, and serves the same verdict to the agent together with
 a compact brief of the issue. An agent that asks about an unclear issue is told not to start, and why.
 
-Built for [Codegeist 2026](https://codegeist2026.devpost.com/), *Apps for Software Teams*. Work in
-progress.
+Built for [Codegeist 2026](https://codegeist2026.devpost.com/), *Apps for Software Teams*.
+[Watch the three-minute demo](https://youtu.be/0__mPQDLhWE).
 
 ## Why
 
