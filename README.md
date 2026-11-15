@@ -26,7 +26,7 @@ place and gives the same answer to the person writing the issue and to the agent
 | Where | What you get |
 |---|---|
 | **Issue panel** in Jira | Verdict (`Ready for an agent`, `Needs clarification`, `Blocked`), each check with a tick or a cross, and the reason for every failed check. Updates when the issue is edited. |
-| **MCP tool `get-work-brief`** | For Claude Code, Cursor or any MCP client: summary, description as plain text, links, subtasks, recent comments, the readiness verdict, what is missing, and whether to start. |
+| **MCP tool `get-work-brief`** | For Claude Code, Cursor or any MCP client: summary, description as plain text, links, subtasks, recent comments, connected work from Teamwork Graph, the readiness verdict, what is missing, and whether to start. |
 | **MCP tool `ask-for-clarification`** | Lets the agent post its open questions on the issue as one comment instead of guessing. |
 | **Rovo agent "Handoff Coach"** | Inside Jira: reports what is missing, asks the questions needed to fill the gaps, drafts a description to paste, and can post open questions for the reporter. |
 
@@ -50,13 +50,26 @@ The last three decide `blocked`; any other failure gives `needs-clarification`.
 The rules are deterministic and use no LLM: the same issue always gets the same verdict, and every
 failed check points at something a person can fix.
 
+### Connected work from Teamwork Graph
+
+The brief and the panel also show what Atlassian's Teamwork Graph connects to the issue: the goals
+it contributes to, linked pull requests and linked designs. An agent sees why the work matters, and
+is told when a pull request is already open or merged so it does not redo work in progress.
+
+Connected work is context, not a check. It never changes the verdict, and when the graph cannot be
+read the brief says so and still returns everything else.
+
 ## How it is built
 
 - **Forge modules:** `rovo:mcp` (two tools), `rovo:agent`, `action`, `jira:issuePanel` (UI Kit).
+- **Teamwork Graph API:** curated queries `jiraWorkItemGoals`, `jiraWorkItemLinkedExternalPullRequests`
+  and `jiraWorkItemLinkedExternalDesigns`, in one request, read as the current user.
 - **Runs on Atlassian:** no external egress, no external storage, no Forge LLM.
-- **Scopes:** `read:jira-work`, `read:jira-user`, `write:jira-work` (comments only).
+- **Scopes:** `read:jira-work`, `read:jira-user`, `write:jira-work` (comments only), and four read-only
+  Teamwork Graph scopes (`read:graph:issue:jira`, `read:graph:goal:atlassian`,
+  `read:graph:pull-request:external`, `read:graph:design:external`).
 - **Bounded output:** description capped at 6,000 characters, 5 recent comments, 20 links, 20
-  subtasks, 10 questions per comment.
+  subtasks, 10 questions per comment, 10 goals, pull requests and designs each.
 
 ### Access control for external MCP clients
 
@@ -120,6 +133,11 @@ Verified on a development site:
 
 - `ask-for-clarification` from Claude Code: the comment is written as the user who authorised the
   client.
+
+- Connected work: an issue with two linked goals shows both in the panel, and Handoff Coach reports
+  the same two from `get-work-brief`. Linked pull requests and designs are not yet verified, because
+  the development site has none in Teamwork Graph. Teamwork Graph is only readable with a user
+  session, so a call that arrives without one gets the brief without connected work.
 
 Not yet verified: a comment written by the app (the path without a user session), and the refusal
 path for a caller without access to the issue.

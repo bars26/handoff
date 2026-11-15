@@ -1,6 +1,6 @@
 # Handoff privacy policy
 
-Last updated: 11 November 2026
+Last updated: 15 November 2026
 
 Handoff is a Forge app for Jira. It runs entirely on Atlassian's Forge platform.
 
@@ -8,7 +8,8 @@ Handoff is a Forge app for Jira. It runs entirely on Atlassian's Forge platform.
 
 When you open the Handoff panel, talk to Handoff Coach, or call a Handoff tool from an MCP client,
 the app reads the Jira issue you asked about: its summary, description, type, status, links,
-subtasks and recent comments. For calls that arrive without a user session it also asks Jira
+subtasks and recent comments, and the goals, pull requests and designs that Atlassian's Teamwork
+Graph links to that issue (name, status and link only). For calls that arrive without a user session it also asks Jira
 whether the calling account may see or comment on that issue.
 
 ## What Handoff writes

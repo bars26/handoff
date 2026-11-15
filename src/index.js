@@ -5,6 +5,7 @@
 import api, { route } from '@forge/api';
 import { buildBrief, BRIEF_FIELDS as FIELDS } from './brief.js';
 import { buildClarificationComment, parseQuestions } from './clarify.js';
+import { CONNECTED_WORK_QUERY, cloudIdFrom, issueAri, normaliseConnectedWork, unavailable } from './graph.js';
 
 // Jira issue keys look like ABC-123. Validating before the request keeps
 // whatever an LLM passes in from reaching the URL.
@@ -83,6 +84,26 @@ async function fetchIssue(issueKey, accountId) {
   return api.asApp().requestJira(path, options);
 }
 
+// Asks Teamwork Graph what is connected to the issue: goals, pull requests and
+// designs. The graph is only readable with a user session, and connected work
+// is extra context, so every failure here is reported inside the brief instead
+// of failing the tool.
+async function fetchConnectedWork(issueId, context) {
+  const ari = issueAri(cloudIdFrom(context), issueId);
+  if (!ari) return unavailable('The site could not be identified for a Teamwork Graph lookup.');
+  try {
+    const response = await api.asUser().requestTeamworkGraph(CONNECTED_WORK_QUERY, { id: ari });
+    if (!response.ok) return unavailable(`Teamwork Graph returned status ${response.status}.`);
+    return normaliseConnectedWork(await response.json());
+  } catch (err) {
+    if (isNoUserSession(err)) {
+      return unavailable('Teamwork Graph needs a user session, and this call arrived without one.');
+    }
+    console.error(`connected work lookup failed: ${err?.message}`);
+    return unavailable('The Teamwork Graph lookup failed.');
+  }
+}
+
 export const getWorkBrief = tool('get-work-brief', async (payload, context) => {
   const issueKey = readIssueKey(payload);
   if (!issueKey) {
@@ -96,7 +117,8 @@ export const getWorkBrief = tool('get-work-brief', async (payload, context) => {
   if (!response.ok) {
     return { error: `Jira returned status ${response.status} for ${issueKey}.` };
   }
-  return buildBrief(await response.json());
+  const raw = await response.json();
+  return buildBrief(raw, await fetchConnectedWork(raw.id, context));
 });
 
 // Posts the questions as one comment on the issue. With a user session the

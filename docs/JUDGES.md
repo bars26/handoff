@@ -14,6 +14,9 @@ You need a Jira Cloud site where you are an admin, with Rovo enabled for part 4.
 2. Choose your site, select **Jira**, and accept the scopes:
    - `read:jira-work`, `read:jira-user`: read the issue, its links and comments
    - `write:jira-work`: post one comment with open questions, only when asked
+   - `read:graph:issue:jira`, `read:graph:goal:atlassian`, `read:graph:pull-request:external`,
+     `read:graph:design:external`: read the goals, pull requests and designs linked to the issue in
+     Teamwork Graph. These need an organization admin to install.
 
 The app makes no external network calls, stores nothing, and does not use Forge LLM.
 
@@ -77,11 +80,26 @@ blocker.
 5. Ask: `Post your open questions on the issue.` The agent calls `ask-for-clarification` and one
    comment appears on issue A.
 
+## 6. Teamwork Graph: connected work
+
+1. Open an issue that is linked to a goal in Atlassian Goals, and add the Handoff panel.
+2. Under the checks, **Connected work** lists each linked goal with a link to it. Linked pull
+   requests and designs appear the same way, with their status.
+3. Ask Handoff Coach `Which goals are connected to this issue?`. It answers from the same
+   `get-work-brief` result.
+4. When a linked pull request is open or merged, the brief's guidance tells the agent to review it
+   before writing new code.
+
+On an issue with nothing linked, the panel says so in one line.
+
 ## What is and is not verified
 
 Verified on our development site: the panel, `get-work-brief` from Claude Code, and Handoff Coach
 return the same verdict for the same issue; comments posted from Rovo and from Claude Code are
 written as the user who confirmed or authorised.
+
+Connected work was verified with linked goals in the panel and through Handoff Coach. Linked pull
+requests and designs are not yet verified: our development site has none in Teamwork Graph.
 
 Not yet verified: the comment written by the app itself (the path without a user session), and the
 refusal for a caller who cannot see the issue. Both are implemented and described in the README
@@ -91,5 +109,7 @@ under *Access control for external MCP clients*.
 
 - **Best Agents:** `rovo:agent` module `handoff-coach` with two `action` modules, in
   [`manifest.yml`](../manifest.yml); prompt in [`prompts/coach.txt`](../prompts/coach.txt).
+- **Best apps with Teamwork Graph integration:** consumes the Teamwork Graph API with three curated
+  queries in [`src/graph.js`](../src/graph.js); part 6 above.
 - **Best app with Atlassian MCP:** `rovo:mcp` module `handoff-mcp` exposing `get-work-brief` and
   `ask-for-clarification`; part 5 above.

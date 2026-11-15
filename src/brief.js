@@ -85,7 +85,10 @@ export function normaliseIssue(raw) {
   };
 }
 
-export function buildBrief(raw) {
+// `connectedWork` is the Teamwork Graph part (see graph.js). It is optional so
+// the rules can run without it, and it never changes the verdict: the checks
+// stay a function of the issue alone.
+export function buildBrief(raw, connectedWork) {
   const issue = normaliseIssue(raw);
   const assessed = assessReadiness(issue);
   // `missing` already carries the details, so the per-check list stays short.
@@ -107,9 +110,12 @@ export function buildBrief(raw) {
     subtasks: issue.subtasks,
     commentCount: issue.commentCount,
     recentComments: issue.recentComments,
-    guidance:
+    ...(connectedWork ? { connectedWork } : {}),
+    guidance: [
       readiness.verdict === 'ready'
         ? 'The issue passes the readiness check. Work against the description and acceptance criteria above.'
         : 'Do not start implementation yet. Report what is missing (see readiness.missing) and ask for it to be resolved in Jira first.',
+      ...(connectedWork?.notes || []),
+    ].join(' '),
   };
 }

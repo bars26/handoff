@@ -125,3 +125,57 @@ test('clarification comment lists the questions and names the asker only when gi
   assert.deepEqual(byApp.content[0].content[2], { type: 'mention', attrs: { id: 'acc-1' } });
   assert.equal(adfToText(byApp).split('\n')[1], '- A?');
 });
+
+// --- Teamwork Graph connected work -----------------------------------------
+
+import { cloudIdFrom, issueAri, normaliseConnectedWork } from '../src/graph.js';
+
+const edges = (...nodes) => ({ edges: nodes.map((node) => ({ node })) });
+
+test('issueAri builds an ARI and refuses malformed parts', () => {
+  assert.equal(issueAri('abc-123', '10042'), 'ari:cloud:jira:abc-123:issue/10042');
+  assert.equal(issueAri('abc-123', 'MOBL-55'), null);
+  assert.equal(issueAri('abc/../x', '10042'), null);
+  assert.equal(issueAri(null, '10042'), null);
+});
+
+test('cloudIdFrom reads the cloud ID or the install context', () => {
+  assert.equal(cloudIdFrom({ cloudId: 'abc-123' }), 'abc-123');
+  assert.equal(cloudIdFrom({ installContext: 'ari:cloud:jira::site/abc-123' }), 'abc-123');
+  assert.equal(cloudIdFrom({}), null);
+});
+
+test('connected work is normalised and open pull requests are called out', () => {
+  const work = normaliseConnectedWork({
+    data: {
+      goals: edges({ key: 'G-1', name: 'Cut call drop rate', url: 'https://x/g1', archived: false }, { key: 'G-2', name: 'Old', archived: true }),
+      pullRequests: edges({ displayId: '12', title: 'WIP monitoring', status: 'OPEN', url: 'https://x/pr/12' }, {}),
+      designs: edges({ displayName: 'Monitor screen', status: 'READY_FOR_DEVELOPMENT', url: 'https://x/d' }),
+    },
+  });
+  assert.equal(work.available, true);
+  assert.deepEqual(work.goals, [{ key: 'G-1', name: 'Cut call drop rate', url: 'https://x/g1' }]);
+  assert.equal(work.pullRequests.length, 1);
+  assert.match(work.notes[0], /already be in progress/);
+  assert.match(work.notes[1], /ready for development/);
+});
+
+test('empty and failed graph responses are reported, not thrown', () => {
+  const empty = normaliseConnectedWork({ data: { goals: null, pullRequests: { edges: [] }, designs: null } });
+  assert.deepEqual(empty, { available: true, goals: [], pullRequests: [], designs: [], notes: [] });
+  const failed = normaliseConnectedWork({ errors: [{ message: 'nope' }] });
+  assert.equal(failed.available, false);
+  assert.match(failed.reason, /nope/);
+});
+
+test('connected work is added to the brief without changing the verdict', () => {
+  const work = normaliseConnectedWork({
+    data: { pullRequests: edges({ title: 'Export', status: 'OPEN', url: 'https://x/pr/1' }) },
+  });
+  const plain = buildBrief(issue({ description: GOOD }));
+  const withWork = buildBrief(issue({ description: GOOD }), work);
+  assert.equal(withWork.readiness.verdict, plain.readiness.verdict);
+  assert.equal(plain.connectedWork, undefined);
+  assert.equal(withWork.connectedWork.pullRequests[0].title, 'Export');
+  assert.match(withWork.guidance, /Review them before writing new code/);
+});

@@ -9,6 +9,7 @@ import ForgeReconciler, {
   Code,
   Icon,
   Inline,
+  Link,
   Lozenge,
   SectionMessage,
   Spinner,
@@ -16,9 +17,10 @@ import ForgeReconciler, {
   Text,
   useProductContext,
 } from '@forge/react';
-import { events, requestJira } from '@forge/bridge';
+import { events, requestJira, requestTeamworkGraph } from '@forge/bridge';
 import { BRIEF_FIELDS, normaliseIssue } from '../brief.js';
 import { assessReadiness } from '../readiness.js';
+import { CONNECTED_WORK_QUERY, issueAri, normaliseConnectedWork, unavailable } from '../graph.js';
 
 const VERDICTS = {
   ready: {
@@ -56,6 +58,62 @@ async function loadReadiness(issueKey) {
   return assessReadiness(normaliseIssue(await response.json()));
 }
 
+// Connected work from Teamwork Graph, read as the person viewing the issue.
+// It is extra context, so a failure shows as a note and never hides the check.
+async function loadConnectedWork(cloudId, issueId) {
+  const ari = issueAri(cloudId, issueId);
+  if (!ari) return unavailable('The site could not be identified for a Teamwork Graph lookup.');
+  try {
+    return normaliseConnectedWork(await requestTeamworkGraph(CONNECTED_WORK_QUERY, { id: ari }));
+  } catch (err) {
+    return unavailable('The Teamwork Graph lookup failed.');
+  }
+}
+
+function ConnectedRow({ kind, label, url, status }) {
+  return (
+    <Inline space="space.100" alignBlock="center">
+      <Text size="small" color="color.text.subtle">{kind}</Text>
+      {url ? <Link href={url} openNewTab>{label}</Link> : <Text>{label}</Text>}
+      {status ? <Lozenge>{status}</Lozenge> : null}
+    </Inline>
+  );
+}
+
+function ConnectedWork({ work }) {
+  if (!work) return null;
+  if (!work.available) {
+    return (
+      <Text size="small" color="color.text.subtle">Connected work: {work.reason}</Text>
+    );
+  }
+  const total = work.goals.length + work.pullRequests.length + work.designs.length;
+  if (!total) {
+    return (
+      <Text size="small" color="color.text.subtle">
+        Connected work: no goals, pull requests or designs are linked to this issue in Teamwork Graph.
+      </Text>
+    );
+  }
+  return (
+    <Stack space="space.100">
+      <Text weight="medium">Connected work</Text>
+      {work.goals.map((g) => (
+        <ConnectedRow key={`g-${g.key || g.name}`} kind="Goal" label={g.name || g.key} url={g.url} />
+      ))}
+      {work.pullRequests.map((p) => (
+        <ConnectedRow key={`p-${p.url || p.title}`} kind="Pull request" label={p.title || p.id} url={p.url} status={p.status} />
+      ))}
+      {work.designs.map((d) => (
+        <ConnectedRow key={`d-${d.url || d.name}`} kind="Design" label={d.name} url={d.url} status={d.status} />
+      ))}
+      {work.notes.map((note) => (
+        <Text key={note} size="small" color="color.text.subtle">{note}</Text>
+      ))}
+    </Stack>
+  );
+}
+
 function CheckRow({ check }) {
   return (
     <Inline space="space.100" alignBlock="start">
@@ -75,16 +133,22 @@ function CheckRow({ check }) {
 function App() {
   const context = useProductContext();
   const issueKey = context?.extension?.issue?.key;
+  const issueId = context?.extension?.issue?.id;
+  const cloudId = context?.cloudId;
   const [state, setState] = useState({ status: 'loading' });
 
   const refresh = useCallback(async () => {
     if (!issueKey) return;
     try {
-      setState({ status: 'done', readiness: await loadReadiness(issueKey) });
+      const [readiness, connectedWork] = await Promise.all([
+        loadReadiness(issueKey),
+        loadConnectedWork(cloudId, issueId),
+      ]);
+      setState({ status: 'done', readiness, connectedWork });
     } catch (err) {
       setState({ status: 'error', message: err?.message || 'Unknown error' });
     }
-  }, [issueKey]);
+  }, [issueKey, issueId, cloudId]);
 
   // Load once the issue key is known, and again whenever the issue is edited
   // on this page, so the verdict follows the description as it is fixed.
@@ -136,6 +200,8 @@ function App() {
       <SectionMessage appearance={verdict.message} title={verdict.title}>
         <Text>{verdict.body}</Text>
       </SectionMessage>
+
+      <ConnectedWork work={state.connectedWork} />
 
       <Box>
         <Text size="small" color="color.text.subtle">

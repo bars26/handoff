@@ -5,13 +5,13 @@ Draft text for the Codegeist 2026 form. Items marked TODO are not done yet.
 - **Project name:** Handoff
 - **Tagline:** Hand Jira issues to coding agents only when they are ready.
 - **Category:** Apps for Software Teams
-- **Bonus prizes:** Best Agents (Rovo), Best app with Atlassian MCP. TODO: Teamwork Graph if the
-  integration ships.
+- **Bonus prizes:** Best Agents (Rovo), Best app with Atlassian MCP, Best apps with Teamwork Graph
+  integration.
 - **Repo:** https://github.com/bars26/handoff
 - **Installation link:** [install Handoff in Jira](https://developer.atlassian.com/console/install/0cee8d96-5d6d-4487-be78-3f66b6c778c2?signature=AYABeGtwiaAiBMZFMujvbfqiDk4AAAADAAdhd3Mta21zAEthcm46YXdzOmttczp1cy13ZXN0LTI6NzA5NTg3ODM1MjQzOmtleS83MDVlZDY3MC1mNTdjLTQxYjUtOWY5Yi1lM2YyZGNjMTQ2ZTcAuAECAQB4CxqLTo9l4lqXuFjNim1xJM%2Bp%2F3TVP9xHS2BrU5DRRucB6iGubc0AHcH5nSuNdvs5yQAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDPGzisvzscylNAXirgIBEIA7JQlCwSK39DT7clEQJtp0Wfb8WmJcd4vSuHeUJ5Kul0md0X6IAOqzgQ3Wu2MUUUzWOQUZ2lvWEbd1ac0AB2F3cy1rbXMAS2Fybjphd3M6a21zOmV1LXdlc3QtMTo3MDk1ODc4MzUyNDM6a2V5LzQ2MzBjZTZiLTAwYzMtNGRlMi04NzdiLTYyN2UyMDYwZTVjYwC4AQICAHi9bVMAkme4qVQX1fQHo6ePw3H40A7cGfz7yrmSfBWMXgGGdZU9frQ8p%2F7ehHBLx6MxAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMANEicxiihYBqNQhVAgEQgDsKps1Ho2M4YlnZdKlMV9Kym1EY9kPCS%2BAXFNhFHOHZuD1aBPortI0pcNonIleLPrwtSlfeEOJ9FPGaegAHYXdzLWttcwBLYXJuOmF3czprbXM6dXMtZWFzdC0xOjcwOTU4NzgzNTI0MzprZXkvNmMxMjBiYTAtNGNkNS00OTg1LWI4MmUtNDBhMDQ5NTJjYzU3ALgBAgIAeDYASx0XCjkny4iLV6vz%2BKtEGSGT6kdt0QRpkn6D%2FlVEAUm79KDmdRT3XXvCAWIv300AAAB%2BMHwGCSqGSIb3DQEHBqBvMG0CAQAwaAYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAwk0ZVnUj3T3CY1usMCARCAO4dotdcPhq4%2B9dVCOTr1RTJ1Vucgm8NFCl7%2BVQPCyGwXV%2FcXwsQVXRwOReUaKxVZ0kQR84VKexFYqtk1AgAAAAAMAAAQAAAAAAAAAAAAAAAAAMM56Vt59X74GOF17akA3Sj%2F%2F%2F%2F%2FAAAAAQAAAAAAAAAAAAAAAQAAADLkz7mJm3e%2Fzegotd2WjdSNR8Qt2E9UDEy7iQiCF7U1ygWgn%2Bl8gsQHyHupBPDcLXkV9S9KPjW4Sn6aCFi2kaCKVfw%3D&product=jira)
 - **Testing instructions:** [docs/JUDGES.md](JUDGES.md)
 - **Demo video:** TODO (YouTube, public, under 5 minutes)
-- **Built with:** Atlassian Forge, Jira, Rovo, MCP, UI Kit, Node.js
+- **Built with:** Atlassian Forge, Jira, Rovo, Teamwork Graph, MCP, UI Kit, Node.js
 
 ## Inspiration
 
@@ -38,6 +38,10 @@ the same answer in three places:
   to fill the gaps, drafts a description to paste, and can post open questions for the reporter
   after the user confirms.
 
+The brief and the panel also carry connected work from Teamwork Graph: the goals the issue
+contributes to, linked pull requests and linked designs. An agent is told when a pull request is
+already open or merged, so it does not redo work in progress.
+
 The checks are deterministic and use no LLM. The same issue always gets the same verdict, and every
 failed check points at something a person can fix.
 
@@ -49,7 +53,10 @@ Everything runs on Forge, with no external egress and no external storage.
 - `rovo:agent` uses the same two actions. Its prompt forbids it from judging readiness itself: the
   verdict comes only from the action.
 - `jira:issuePanel` (UI Kit) calls the same readiness code and refreshes on issue change events.
-- The rules are plain JavaScript modules (ADF to text, readiness, brief) covered by 13 `node:test`
+- Connected work comes from three curated Teamwork Graph queries sent in one request as the current
+  user. It is context only: it never changes the verdict, and a failed lookup is reported inside
+  the brief.
+- The rules are plain JavaScript modules (ADF to text, readiness, brief, graph) covered by 18 `node:test`
   tests that run in CI without Forge.
 - Output is bounded: description capped at 6,000 characters, 5 comments, 20 links, 20 subtasks, 10
   questions per comment.
@@ -57,8 +64,9 @@ Everything runs on Forge, with no external egress and no external storage.
 ## How it meets the technology requirement
 
 Handoff is built on Forge and integrates with Jira (issue panel, Jira REST API through
-`@forge/api`) and Rovo (`rovo:agent`, `rovo:mcp`, `action`). The context it uses is the issue
-itself plus its links, blockers, subtasks and comments.
+`@forge/api`), Rovo (`rovo:agent`, `rovo:mcp`, `action`) and the Teamwork Graph API. The context it
+uses is the issue itself, its links, blockers, subtasks and comments, and the goals, pull requests
+and designs Teamwork Graph connects to it.
 
 ## Challenges we ran into
 
@@ -82,6 +90,5 @@ unchanged.
 
 ## What's next
 
-- Teamwork Graph: use connected work (pull requests, linked pages) in the brief. TODO
 - Per-project rules, so teams can set their own definition of ready.
 - Marketplace listing.
