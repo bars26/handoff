@@ -144,6 +144,11 @@ Verified on a development site:
   private space they are not a member of. `ask-for-clarification` posted the comment as the app,
   naming that user as the one who asked.
 
+- Installation on a fresh site: a different account installed the production app through the
+  installation link on a new Free plan Jira site, and the panel gave the expected verdicts for the
+  two sample issues in [`docs/JUDGES.md`](docs/JUDGES.md). That site showed no Rovo chat, so the
+  agent was not tried there.
+
 ## License
 
 MIT
