@@ -37,10 +37,10 @@ All four use the same rules in [`src/readiness.js`](src/readiness.js).
 | Check | Passes when |
 |---|---|
 | Has a description | At least 80 characters |
-| States acceptance criteria | An "Acceptance criteria" / "Definition of done" section, a checklist, or Given/When/Then |
+| States acceptance criteria | An "Acceptance criteria" / "Definition of done" section, a checklist, or When/Then lines |
 | Has steps to reproduce *(bugs)* | A "Steps to reproduce" section or numbered steps |
 | States expected and actual behaviour *(bugs)* | Both are mentioned |
-| No open questions | No TBD, TODO, "unclear" and similar in the description |
+| No open questions | No TBD, TODO, "unclear whether…", "???" and similar in the description (code blocks are ignored) |
 | Is a single piece of work | Not an epic, initiative or theme |
 | Not blocked by unfinished work | No "is blocked by" link to an issue that is not done |
 | Still open | The issue is not in a done status |

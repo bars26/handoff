@@ -3,7 +3,7 @@
 // rovo:agent module lets the Handoff Coach agent call them inside Rovo.
 
 import api, { route } from '@forge/api';
-import { buildBrief, BRIEF_FIELDS as FIELDS } from './brief.js';
+import { buildBrief, hasMoreComments, withLatestComments, BRIEF_FIELDS as FIELDS, MAX_COMMENTS } from './brief.js';
 import { buildClarificationComment, parseQuestions } from './clarify.js';
 import { CONNECTED_WORK_QUERY, cloudIdFrom, issueAri, normaliseConnectedWork, unavailable } from './graph.js';
 
@@ -68,20 +68,42 @@ async function callerCan(permission, issueKey, accountId) {
 // Reads the issue as the calling user when there is a user session. Without
 // one it is read as the app, but only after Jira confirms that the caller may
 // browse that issue, so the tool never shows anyone an issue they could not
-// open themselves.
+// open themselves. Returns the response and the client that was allowed to
+// read, so follow-up reads of the same issue go the same way.
 async function fetchIssue(issueKey, accountId) {
   const path = route`/rest/api/3/issue/${issueKey}?fields=${FIELDS}`;
   const options = { headers: { Accept: 'application/json' } };
 
   try {
-    return await api.asUser().requestJira(path, options);
+    return { response: await api.asUser().requestJira(path, options), client: api.asUser() };
   } catch (err) {
     if (!isNoUserSession(err)) throw err;
   }
 
   // "Missing" and "not allowed" look the same to the caller, as in Jira.
-  if (!(await callerCan('BROWSE', issueKey, accountId))) return { ok: false, status: 404 };
-  return api.asApp().requestJira(path, options);
+  if (!(await callerCan('BROWSE', issueKey, accountId))) return { response: { ok: false, status: 404 }, client: null };
+  return { response: await api.asApp().requestJira(path, options), client: api.asApp() };
+}
+
+// The issue carries its comments oldest first and possibly only the first
+// page. On a long thread, ask for the newest ones so "recent comments" are
+// recent. If that fails the brief keeps what the issue returned.
+async function withRecentComments(raw, issueKey, client) {
+  if (!hasMoreComments(raw)) return raw;
+  try {
+    const response = await client.requestJira(
+      route`/rest/api/3/issue/${issueKey}/comment?orderBy=-created&maxResults=${MAX_COMMENTS}`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!response.ok) {
+      console.error(`latest comments returned status ${response.status}`);
+      return raw;
+    }
+    return withLatestComments(raw, (await response.json()).comments);
+  } catch (err) {
+    console.error(`latest comments failed: ${err?.message}`);
+    return raw;
+  }
 }
 
 // Asks Teamwork Graph what is connected to the issue: goals, pull requests and
@@ -110,14 +132,14 @@ export const getWorkBrief = tool('get-work-brief', async (payload, context) => {
     return { error: `"${payload?.issueKey}" is not a Jira issue key. Expected something like PROJ-123.` };
   }
 
-  const response = await fetchIssue(issueKey, callerId(payload, context));
+  const { response, client } = await fetchIssue(issueKey, callerId(payload, context));
   if (response.status === 404) {
     return { error: `Issue ${issueKey} does not exist or you do not have permission to see it.` };
   }
   if (!response.ok) {
     return { error: `Jira returned status ${response.status} for ${issueKey}.` };
   }
-  const raw = await response.json();
+  const raw = await withRecentComments(await response.json(), issueKey, client);
   return buildBrief(raw, await fetchConnectedWork(raw.id, context));
 });
 

@@ -25,7 +25,7 @@ export const BRIEF_FIELDS = [
 // large the issue is.
 const MAX_DESCRIPTION_CHARS = 6000;
 const MAX_COMMENT_CHARS = 800;
-const MAX_COMMENTS = 5;
+export const MAX_COMMENTS = 5;
 const MAX_LINKS = 20;
 const MAX_SUBTASKS = 20;
 
@@ -83,6 +83,20 @@ export function normaliseIssue(raw) {
     commentCount: f.comment?.total ?? comments.length,
     recentComments: comments,
   };
+}
+
+// Jira may return only the first page of comments with the issue, oldest
+// first. When it did, the last ones on that page are not the latest ones.
+export function hasMoreComments(raw) {
+  const comment = raw?.fields?.comment;
+  return Boolean(comment) && (comment.total ?? 0) > (comment.comments || []).length;
+}
+
+// Replaces the issue's comments with a page fetched newest first (see
+// index.js), put back in chronological order. The total is kept.
+export function withLatestComments(raw, newestFirst) {
+  const comments = [...(newestFirst || [])].reverse();
+  return { ...raw, fields: { ...raw.fields, comment: { ...raw.fields.comment, comments } } };
 }
 
 // `connectedWork` is the Teamwork Graph part (see graph.js). It is optional so

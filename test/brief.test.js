@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { adfToText } from '../src/adf.js';
-import { buildBrief } from '../src/brief.js';
+import { buildBrief, hasMoreComments, withLatestComments } from '../src/brief.js';
 
 const p = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
 const doc = (...content) => ({ type: 'doc', version: 1, content });
@@ -97,6 +97,41 @@ test('long descriptions and comment lists are capped', () => {
   assert.equal(brief.recentComments.length, 5);
   assert.equal(brief.recentComments[4].body, 'c8');
   assert.equal(brief.commentCount, 9);
+});
+
+test('one sentence starting with "When" is not acceptance criteria', () => {
+  const text = 'When a supervisor opens the dashboard they need to see every live call and who is on it, right away.';
+  const failed = buildBrief(issue({ description: doc(p(text)) })).readiness.checks.filter((c) => !c.ok);
+  assert.deepEqual(failed.map((c) => c.id), ['acceptance']);
+});
+
+test('Given/When/Then counts as acceptance criteria, also as list items', () => {
+  const context = p('Supervisors need to download the call history they are looking at to share it.');
+  const item = (text) => ({ type: 'listItem', content: [p(text)] });
+  const plain = doc(context, p('Given a filtered call history'), p('When I select Export'), p('Then I get a CSV of those rows'));
+  const listed = doc(context, { type: 'bulletList', content: [item('When I select Export'), item('Then I get a CSV')] });
+  assert.equal(buildBrief(issue({ description: plain })).readiness.verdict, 'ready');
+  assert.equal(buildBrief(issue({ description: listed })).readiness.verdict, 'ready');
+});
+
+test('open questions: undecided wording is flagged, problem wording and code are not', () => {
+  const verdict = (...extra) => buildBrief(issue({ description: doc(...GOOD.content, ...extra) })).readiness.verdict;
+  const code = { type: 'codeBlock', content: [{ type: 'text', text: '// TODO: remove this' }] };
+  assert.equal(verdict(p('The current error message is unclear to users.')), 'ready');
+  assert.equal(verdict(code), 'ready');
+  assert.equal(verdict(p('It is unclear whether admins can export too.')), 'needs-clarification');
+  assert.equal(verdict(p('Column order: ???')), 'needs-clarification');
+});
+
+test('a long comment thread is replaced by its newest comments, in order', () => {
+  const c = (text) => ({ author: { displayName: 'A' }, created: '2026-11-10T10:00:00.000+0000', body: doc(p(text)) });
+  const raw = issue({ description: GOOD, comment: { total: 40, comments: [c('first'), c('second')] } });
+  assert.equal(hasMoreComments(raw), true);
+  assert.equal(hasMoreComments(issue({ comment: { total: 2, comments: [c('a'), c('b')] } })), false);
+  assert.equal(hasMoreComments(issue({})), false);
+  const brief = buildBrief(withLatestComments(raw, [c('newest'), c('older')]));
+  assert.deepEqual(brief.recentComments.map((x) => x.body), ['older', 'newest']);
+  assert.equal(brief.commentCount, 40);
 });
 
 import { buildClarificationComment, parseQuestions, MAX_QUESTIONS, MAX_QUESTION_CHARS } from '../src/clarify.js';

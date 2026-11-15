@@ -56,7 +56,7 @@ Everything runs on Forge, with no external egress and no external storage.
 - Connected work comes from three curated Teamwork Graph queries sent in one request as the current
   user. It is context only: it never changes the verdict, and a failed lookup is reported inside
   the brief.
-- The rules are plain JavaScript modules (ADF to text, readiness, brief, graph) covered by 18 `node:test`
+- The rules are plain JavaScript modules (ADF to text, readiness, brief, graph) covered by 22 `node:test`
   tests that run in CI without Forge.
 - Output is bounded: description capped at 6,000 characters, 5 comments, 20 links, 20 subtasks, 10
   questions per comment.

@@ -7,10 +7,27 @@
 
 const MIN_DESCRIPTION_CHARS = 80;
 
-const ACCEPTANCE = /acceptance criteria|definition of done|\bdone when\b|\bAC\s*[:\-]|^\s*(given|when|then)\b|- \[[ x]\]/im;
+// "AC:" only counts in capitals, so ordinary words and issue keys do not match.
+const ACCEPTANCE = /acceptance criteria|definition of done|\bdone when\b|- \[[ x]\]/i;
+const ACCEPTANCE_SHORT = /\bACs?\s*:/;
+// Given/When/Then counts when there is a When line and a Then line, as plain
+// lines or list items. One sentence that happens to start with "When" does not.
+const stepLine = (word) => new RegExp(`^\\s*(?:[-*]\\s+|\\d+\\.\\s+)?${word}\\b`, 'im');
+const WHEN_LINE = stepLine('when');
+const THEN_LINE = stepLine('then');
 const REPRO = /steps to reproduce|repro(duction)? steps|how to reproduce|^\s*1\.\s+\S/im;
 const EXPECTED_ACTUAL = /expected[\s\S]{0,400}actual|actual[\s\S]{0,400}expected/i;
-const OPEN_QUESTION = /\b(TBD|TBC|TODO|to be (decided|defined|confirmed)|not sure|unclear|open question)\b/i;
+// "unclear" only counts where it marks something undecided ("unclear whether…"),
+// not where it describes the problem ("the error message is unclear").
+const OPEN_QUESTION =
+  /\b(?:TBD|TBC|TBA|TODO|to be (?:decided|defined|confirmed|determined|discussed)|not sure|open questions?|not yet clear|(?:still|it is|it's) unclear|unclear (?:whether|if|how|what|who|which|when|where|why))\b|\?{3,}/i;
+// Code blocks (rendered as fenced blocks by adf.js) are quoted material: a
+// TODO comment inside a snippet is not an open question about the issue.
+const CODE_BLOCK = /```[\s\S]*?```/g;
+
+function hasAcceptance(text) {
+  return ACCEPTANCE.test(text) || ACCEPTANCE_SHORT.test(text) || (WHEN_LINE.test(text) && THEN_LINE.test(text));
+}
 
 // Issue types that describe a container of work rather than one piece of it.
 const CONTAINER_TYPES = new Set(['epic', 'initiative', 'theme']);
@@ -43,8 +60,8 @@ export function assessReadiness(issue) {
     check(
       'acceptance',
       'States acceptance criteria',
-      ACCEPTANCE.test(text),
-      ACCEPTANCE.test(text)
+      hasAcceptance(text),
+      hasAcceptance(text)
         ? null
         : 'No acceptance criteria, definition of done, checklist or Given/When/Then found in the description.'
     )
@@ -69,7 +86,7 @@ export function assessReadiness(issue) {
     );
   }
 
-  const open = text.match(OPEN_QUESTION);
+  const open = text.replace(CODE_BLOCK, '').match(OPEN_QUESTION);
   checks.push(
     check(
       'open-questions',
